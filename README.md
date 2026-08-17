@@ -17,23 +17,24 @@
 本插件在聊天窗**左边缘**加一条细导航条（类似 VS Code 的 minimap）：
 
 ```
-聊天滚动窗 (overflow-y: auto)
-  │  每条用户消息 = 一个刻度（data-chat-flow-kind="user"）
+聊天滚动窗 (overflow-y: auto，长会话分页加载)
+  │  每条用户消息 = 一个刻度（含未加载的历史，来自会话日志）
   │  视口内的消息刻度 = 加粗高亮
   │
-  ▼  悬停刻度 → 预览卡片（第几条 / 共几条 + 消息摘要）
-  ▼  点击刻度 → 平滑滚动到该消息
+  ▼  悬停刻度 → 预览卡片（第几条 / 共几条 + 消息摘要 + 时间行）
+  ▼  点击刻度 → 平滑滚动到该消息（未加载的先自动向上翻页）
   ▼  点击/拖动轨道 → 按比例跳转
 ```
 
-**纯前端、只读**：插件不新增任何 HTTP 路由，不读写文件，只读取浏览器中已渲染的会话 DOM（聊天节点带有稳定的 `data-chat-flow-kind` / `data-chat-flow-key` 锚点），滚动的是既有的聊天滚动容器。宿主半部是空实现，仅为让 client 模块系统发现 `dsh.client` 声明。
+**只读**：客户端只读取浏览器中已渲染的会话 DOM（聊天节点带有稳定的 `data-chat-flow-kind` / `data-chat-flow-key` 锚点），滚动的是既有的聊天滚动容器；宿主半部只新增一个**只读路由** `GET /api/message-minimap-messages`，从会话日志（`$DSH_HOME/sessions`）提取全量用户消息的**摘要**（每条最多 140 字符 + 时间戳），用于覆盖"加载更多"还没渲染的历史刻度。不修改、不删除任何文件。
 
 ## 2. 功能特性
 
 - ✅ 聊天窗左侧一条**紧凑居中**的导航条（不铺满全高），不干扰布局。
 - ✅ **每条用户消息一个刻度**，在刻度列上均匀分布（上旧下新），不随消息长短散开。
+- ✅ **长会话分页也不怕**：刻度覆盖**全部**用户消息（含"加载更多"未渲染的历史，数据来自会话日志）；点击未加载的刻度会**自动向上翻页**，加载到后平滑跳转。
 - ✅ **当前视口内的消息刻度自动加粗高亮**，随滚动实时更新。
-- ✅ **悬停刻度**弹出预览卡片：`我的消息 · 3 / 12` + 消息文本摘要（最多 140 字符、7 行）。
+- ✅ **悬停刻度**弹出预览卡片：`我的消息 · 3 / 12` + 消息文本摘要（最多 140 字符、7 行）+ 独立时间行。
 - ✅ **点击刻度**平滑滚动到该消息（停靠在视口上方约 18% 处）。
 - ✅ **点击/按住拖动轨道背景**按比例跳转，像滚动条一样快速扫读。
 - ✅ 流式输出、加载历史、切换会话、窗口缩放时自动跟随（MutationObserver + scroll/resize + 轮询兜底）。
@@ -58,7 +59,7 @@ dsh-message-minimap/   # 仓库根 = npm 包根
 ├── LICENSE                 # MIT
 ├── screenshot/             # 效果截图（README「效果预览」用）
 └── lib/
-    ├── index.js            # 宿主半部：刻意的空实现（零依赖），只为让 Loader 发现本包
+    ├── index.js            # 宿主半部：/api/message-minimap-messages（读会话日志 → 全量用户消息摘要，零依赖）
     └── client.js           # 浏览器 bundle：导航条（conversation.session.header.utilities 挂载）
 ```
 
@@ -101,40 +102,68 @@ dsh plugin --profile web add "D:\path\to\dsh-message-minimap"
 1. 打开任意历史会话（或聊到内容超过一屏）。
 2. 看聊天窗左侧居中的导航条：每个小刻度是**你发过的一条消息**，**当前在视口内的消息刻度**会加粗高亮。
 3. **悬停刻度**：右侧弹出预览卡，显示"我的消息 · n / 总数"与消息开头内容。
-4. **点击刻度**：平滑滚动到那条消息。
+4. **点击刻度**：平滑滚动到那条消息；若它还没被"加载更多"渲染出来，会自动向上翻页加载后再跳转。
 5. **点击或按住拖动刻度以外的轨道**：按比例跳转（等价于滚动条拖拽）。
 6. 会话太短（不足一屏）、没有用户消息、或在空白新会话页时，导航条自动隐藏。
 
-## 6. 实现要点
+## 6. API 速查
+
+```text
+GET /api/message-minimap-messages?sessionId=<sessionId>
+```
+
+- 需要浏览器信任围栏通过（loopback / `trustedHosts` + 同源校验），否则 `403`。
+- 未知 `sessionId` 返回 `404`；缺失 `sessionId` 返回 `400`。
+- 只返回摘要：每条消息的 `seq`、 epoch 时间、最多 140 字符的折叠摘要、是否含图片；不返回完整内容，不返回其他类型记录。
+
+响应示例：
+
+```json
+{
+  "total": 14,
+  "messages": [
+    { "seq": 7, "time": 1786975510788, "text": "我需要你参考 …", "image": true }
+  ]
+}
+```
+
+## 7. 实现要点
 
 | 关注点 | 做法 |
 |---|---|
-| 锚点来源 | 会话包给每个聊天节点渲染 `data-chat-flow-kind` / `data-chat-flow-key` 的稳定包裹层；用户消息 kind 为 `"user"`。 |
+| 锚点来源 | 会话包给每个聊天节点渲染 `data-chat-flow-kind` / `data-chat-flow-key` 的稳定包裹层；用户消息 kind 为 `"user"`；分页列带有 `data-chat-flow`。 |
+| 全量数据 | 宿主半部读会话日志（`session.jsonl` / `.zstd`，按帧解压、容忍写入中的残帧），只保留 `source.kind === "user"` 的 `user/message` 记录；按 (size, mtime) 缓存。 |
+| 分页对齐 | 聊天视图只渲染**最近一段**，因此 `DOM 下标 = 全量下标 − (全量数 − 已渲染数)`；点击未加载的刻度时循环拉取上一页（优先会话级 `conversation.loadOlder()` 服务，兜底点"加载更多"按钮），目标进入 DOM 后平滑跳转；一页无进展即停，绝不死循环。 |
+| 降级 | 宿主路由不可达（403/404/网络）时自动退回"仅已加载消息"刻度，即纯 DOM 模式。 |
 | 滚动容器 | 从第一个可见 flow item 向上找最近的 `overflow-y: auto/scroll` 祖先；导出布局（`data-conversation-scroll`，不滚动）下自动隐藏。 |
 | 几何映射 | 刻度列紧凑居中（高 ≈ min(刻度间距 × 数量, 窗高 × 0.55)，下限 120px），刻度按序号**均匀分布**；拖动轨道时按比例换算滚动位置；消息内容偏移只用于跳转目标与"视口内"判定。 |
-| 数据同步 | `MutationObserver`（childList/subtree/characterData，覆盖流式输出）+ 容器 `scroll` + `ResizeObserver` + 1s 轮询兜底（应对迟挂载/会话切换），rAF 节流 + 浅比较避免渲染抖动。 |
+| 数据同步 | `MutationObserver`（childList/subtree/characterData，覆盖流式输出）+ 容器 `scroll` + `ResizeObserver` + 1s 轮询兜底（应对迟挂载/会话切换），rAF 节流 + 浅比较避免渲染抖动；全量列表 5s 轻量拉取（宿主按 mtime 缓存）。 |
 | 挂载点 | `conversation.session.header.utilities` 槽位（活动会话常驻），组件本身只渲染 `position: fixed` 的轨道，无内联占位。 |
 | 样式 | 与官方包一致地注入 `<style data-plugin-css>`，全部使用 DSW 主题变量，自动适配明暗主题。 |
 
-## 7. 日志与排错
+## 8. 日志与排错
 
 | 现象 | 排查方向 |
 |---|---|
 | 看不到导航条 | 确认已重启 `dsh web`；会话需已有用户消息且内容可滚动；F12 Console 搜 `dsh-message-minimap`。 |
+| 刻度只覆盖最近一段 | 宿主路由未生效：Network 里查 `/api/message-minimap-messages`（`403`=信任围栏、`404`=会话未找到）；路由不可达时插件会降级为只显示已加载段。 |
+| 点击早期刻度没跳转 | 插件会先自动向上翻页（聊天顶部出现"加载中"）；若历史已全部加载仍未跳转，多为分叉/插队消息导致的计数偏差，滚动一下再点。 |
 | 刻度位置偏移 | 偶发的图片/附件异步加载会改变高度——MutationObserver 会自动校正；若持续异常，滚动一下或缩放窗口触发重算。 |
 | 点击不跳转 | 检查是否在导出/打印式布局（`data-conversation-scroll`）下——该布局无内部滚动容器，插件自动隐藏。 |
 | 样式异常 | 确认主题变量（`--dsw-*`）存在；本插件不自带配色，全部跟随 DSW 主题。 |
 
-## 8. 安全与合规
+## 9. 安全与合规
 
-- **只读**：不修改 DOM 业务结构、不拦截事件（除自身轨道）、不发起网络请求。
-- **零宿主能力**：宿主半部为空实现，不开路由、不读文件、无配置项。
+- **只读**：不修改 DOM 业务结构、不拦截事件（除自身轨道）、不修改/删除任何文件；宿主只读会话日志。
+- **路径红线**：会话日志**仅**由 `$DSH_HOME/sessions` 下的会话 id 编码段定位，绝不接受客户端传来的路径；id 单段转义，杜绝目录穿越。
+- **浏览器信任围栏**：`/api/message-minimap-messages` 仅接受 loopback 或声明 `trustedHosts` 的同源请求，拒绝 `sec-fetch-site: cross-site` 与 Origin 不同的请求。
+- **信息最小化**：只返回每条用户消息的 `seq`、时间、最多 140 字符摘要与图片标记；不返回完整内容、不返回其他类型记录。
 - **无持久化**：不写 localStorage / cookie；卸载即无痕。
 
-## 9. 开发与构建
+## 10. 开发与构建
 
-纯 JS 无构建步骤。`lib/client.js` 是经典脚本（`window.__ModuleLoader__.load`），由 client 模块系统按 `/plugins/dsh-message-minimap/client.js` 直接服务。
+纯 JS 无构建步骤。`lib/index.js` 宿主半部**零外部依赖**（仅 `node:` 内置）；`lib/client.js` 是经典脚本（`window.__ModuleLoader__.load`），由 client 模块系统按 `/plugins/dsh-message-minimap/client.js` 直接服务。
 
-## 10. License
+## 11. License
 
 MIT © AFAP
