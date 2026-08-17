@@ -1,0 +1,12 @@
+# dsh-message-minimap bundle patch: adds the message-minimap plugin
+# row to the web profile composition. Applied as a bundle layer
+# (dsh.bundle.patch) after dsh-base and dsh-web-app, so the row lands beside
+# the other dsh.client rows.
+#
+# The plugin is pure client-side: the host half is a no-op marker that only
+# exists so the client module system (dsh-client-modules) discovers the
+# package's `dsh.client` declaration and serves /plugins/dsh-message-minimap/client.js.
+# No webRuntime / trustedHosts are needed because the plugin opens no routes.
+- insert:
+    - id: message-minimap
+      name: dsh-message-minimap
