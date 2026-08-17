@@ -43,6 +43,12 @@ chat scroll pane (overflow-y: auto)
 
 **MVP limitations**: no ticks for assistant messages/errors/branches; no text search over ticks; no persisted on/off toggle (always auto show/hide).
 
+## Preview
+
+| Hover a tick: preview card (excerpt + dedicated time line) |
+|:---:|
+| ![Hover tick preview](screenshot/rail-hover.png) |
+
 ## 3. Directory layout
 
 ```
@@ -50,6 +56,7 @@ dsh-message-minimap/        # repo root = npm package root
 ├── package.json            # dsh.bundle.patch + dsh.client (browser declaration) + exports["./client"]
 ├── cordis.patch.yml        # composition row: a single plugin record (no route, no config)
 ├── LICENSE                 # MIT
+├── screenshot/             # screenshots for the README "Preview" section
 └── lib/
     ├── index.js            # host half: deliberate no-op (zero deps), only so the Loader sees this package
     └── client.js           # browser bundle: the rail (mounted via conversation.session.header.utilities)

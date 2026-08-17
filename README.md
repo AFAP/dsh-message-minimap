@@ -43,6 +43,12 @@
 
 **MVP 暂不支持**：不标注 AI 消息/错误/分支；不做按文本搜索刻度；不做持久化开关（始终自动显示/隐藏）。
 
+## 效果预览
+
+| 悬停刻度：预览卡片（摘要 + 独立时间行） |
+|:---:|
+| ![悬停刻度预览](screenshot/rail-hover.png) |
+
 ## 3. 目录结构
 
 ```
@@ -50,6 +56,7 @@ dsh-message-minimap/   # 仓库根 = npm 包根
 ├── package.json            # dsh.bundle.patch + dsh.client（浏览器端声明）+ exports["./client"]
 ├── cordis.patch.yml        # 组合行：仅插入一行插件记录（无路由、无配置）
 ├── LICENSE                 # MIT
+├── screenshot/             # 效果截图（README「效果预览」用）
 └── lib/
     ├── index.js            # 宿主半部：刻意的空实现（零依赖），只为让 Loader 发现本包
     └── client.js           # 浏览器 bundle：导航条（conversation.session.header.utilities 挂载）
