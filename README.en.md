@@ -19,7 +19,7 @@ This plugin adds a thin navigation rail on the **left edge** of the chat pane (l
 ```
 chat scroll pane (overflow-y: auto)
   │  each user message = one tick (data-chat-flow-kind="user")
-  │  translucent block = current viewport
+  │  ticks of in-viewport messages = bold highlight
   │
   ▼  hover a tick → preview card (index / total + message excerpt)
   ▼  click a tick → smooth-scroll to that message
@@ -30,9 +30,9 @@ chat scroll pane (overflow-y: auto)
 
 ## 2. Features
 
-- ✅ A fixed 16px rail on the chat pane's left edge, strictly aligned to the scroll pane's position and height.
-- ✅ **One tick per user message**, positioned proportionally (oldest at top, newest at bottom).
-- ✅ A **viewport block** that follows scrolling in real time.
+- ✅ A **compact, vertically centered** rail on the chat pane's left edge (not full height) — zero layout interference.
+- ✅ **One tick per user message**, evenly spaced on the rail (oldest at top, newest at bottom) — never scattered by message sizes.
+- ✅ **Ticks of the messages inside the viewport are auto-bolded**, following the scroll in real time.
 - ✅ **Hovering a tick** pops a preview card: `My message · 3 / 12` plus the message excerpt (up to 140 chars / 7 lines).
 - ✅ **Clicking a tick** smooth-scrolls to that message (parked ~18% below the pane top).
 - ✅ **Clicking or dragging the rail background** jumps proportionally, like a scrollbar.
@@ -92,7 +92,7 @@ Open a session **with several exchanges whose content overflows and scrolls** �
 ## 5. Usage
 
 1. Open any long historical session (or chat past one screenful).
-2. Look at the left-edge rail: the translucent block is the **current viewport**; the small ticks are **every message you sent**.
+2. Look at the centered rail on the chat pane's left edge: each small tick is **one message you sent**; the ticks of **messages currently inside the viewport** are bolded.
 3. **Hover a tick**: a preview card pops to the right with "My message · n / total" and the message opening.
 4. **Click a tick**: smooth-scrolls to that message.
 5. **Click or drag the rail outside the ticks**: proportional jump (equivalent to scrollbar dragging).
@@ -104,7 +104,7 @@ Open a session **with several exchanges whose content overflows and scrolls** �
 |---|---|
 | Anchor source | The conversation package wraps every chat node with stable `data-chat-flow-kind` / `data-chat-flow-key` attributes; user messages have kind `"user"`. |
 | Scroll container | Nearest `overflow-y: auto/scroll` ancestor of the first visible flow item; auto-hides in the export layout (`data-conversation-scroll`, nothing scrolls). |
-| Geometry mapping | `tick y = message content offset / scrollHeight × rail height`; same for the viewport block (16px minimum height). |
+| Geometry mapping | The tick column is compact and centered (height ≈ min(tick pitch × count, pane height × 0.55), 120px minimum); ticks are **evenly spaced by index**. Rail drags map proportionally to scroll position; content offsets are only used for jump targets and in-view detection. |
 | Sync | `MutationObserver` (childList/subtree/characterData, covering streaming) + container `scroll` + `ResizeObserver` + 1s polling fallback (late mount / session switch), rAF-throttled with shallow equality to avoid render churn. |
 | Mount point | The `conversation.session.header.utilities` slot (always mounted for the active session); the component renders only the `position: fixed` rail, no inline chrome. |
 | Styling | Injected `<style data-plugin-css>` like the shipped bundles; everything uses DSW theme variables, auto light/dark. |
