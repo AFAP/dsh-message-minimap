@@ -5,7 +5,6 @@
 </div>
 
 > **A slim minimap rail on the LEFT edge of the DeepSeek Harness Web GUI chat pane: every message you sent becomes a tick — hover for a preview, click to jump, drag to scan long sessions.**
-> Inspired by editor minimaps, implemented after the plugin structure of [dsh-input-file-ref](https://github.com/AFAP/dsh-input-file-ref) and [dsh-token-usage](https://github.com/AFAP/dsh-token-usage).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 

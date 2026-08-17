@@ -5,7 +5,6 @@
 </div>
 
 > **在 DeepSeek Harness Web GUI 会话聊天窗的左边缘显示一条迷你导航条：每一条你发送的消息都是刻度，悬停看摘要，点击即跳转，拖动可快速扫读长会话。**
-> 灵感来自编辑器 minimap / 截图中的"用户消息定位条"，参照 [dsh-input-file-ref](https://github.com/AFAP/dsh-input-file-ref) 与 [dsh-token-usage](https://github.com/AFAP/dsh-token-usage) 的插件结构实现。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
