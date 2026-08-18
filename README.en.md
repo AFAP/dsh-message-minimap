@@ -34,6 +34,7 @@ chat scroll pane (overflow-y: auto, long sessions are paged)
 - ✅ **One tick per user message**, evenly spaced on the rail (oldest at top, newest at bottom) — never scattered by message sizes.
 - ✅ **Immune to history paging**: ticks cover ALL user messages (including history not yet rendered via "load older", sourced from the session log); clicking an unloaded tick **auto-pages up** and then smooth-scrolls to it.
 - ✅ **Ticks of the messages inside the viewport are auto-bolded**, following the scroll in real time.
+- ✅ **Fisheye magnification while sweeping the rail**: the tick under the pointer grows longest, its neighbors grow by a cosine distance falloff (CSS-transitioned) — spot the target at a glance.
 - ✅ **Hovering a tick** pops a preview card: `My message · 3 / 12` plus the message excerpt (up to 140 chars / 7 lines) on its own line, plus a dedicated time line.
 - ✅ **Clicking a tick** smooth-scrolls to that message (parked ~18% below the pane top).
 - ✅ **Clicking or dragging the rail background** jumps proportionally, like a scrollbar.
