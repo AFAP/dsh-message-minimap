@@ -137,7 +137,7 @@ GET /api/message-minimap-messages?sessionId=<sessionId>
 | 分页对齐 | 聊天视图只渲染**最近一段**，因此 `DOM 下标 = 全量下标 − (全量数 − 已渲染数)`；点击未加载的刻度时循环拉取上一页（优先会话级 `conversation.loadOlder()` 服务，兜底点"加载更多"按钮），目标进入 DOM 后平滑跳转；一页无进展即停，绝不死循环。 |
 | 降级 | 宿主路由不可达（403/404/网络）时自动退回"仅已加载消息"刻度，即纯 DOM 模式。 |
 | 滚动容器 | 从第一个可见 flow item 向上找最近的 `overflow-y: auto/scroll` 祖先；导出布局（`data-conversation-scroll`，不滚动）下自动隐藏。 |
-| 几何映射 | 刻度列紧凑居中（高 ≈ min(刻度间距 × 数量, 窗高 × 0.55)，下限 120px），刻度按序号**均匀分布**；拖动轨道时按比例换算滚动位置；消息内容偏移只用于跳转目标与"视口内"判定。 |
+| 几何映射 | 刻度列紧凑居中（间距固定 10px，高 ≈ min(10px × 数量 + 28px, 窗高 × 0.55)），刻度按序号**均匀分布**；拖动轨道时按比例换算滚动位置；消息内容偏移只用于跳转目标与"视口内"判定。 |
 | 数据同步 | `MutationObserver`（childList/subtree/characterData，覆盖流式输出）+ 容器 `scroll` + `ResizeObserver` + 1s 轮询兜底（应对迟挂载/会话切换），rAF 节流 + 浅比较避免渲染抖动；全量列表 5s 轻量拉取（宿主按 mtime 缓存）。 |
 | 挂载点 | `conversation.session.header.utilities` 槽位（活动会话常驻），组件本身只渲染 `position: fixed` 的轨道，无内联占位。 |
 | 样式 | 与官方包一致地注入 `<style data-plugin-css>`，全部使用 DSW 主题变量，自动适配明暗主题。 |
