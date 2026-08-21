@@ -32,7 +32,7 @@ chat scroll pane (overflow-y: auto, long sessions are paged)
 
 - ✅ A **compact, vertically centered** rail on the chat pane's left edge (not full height) — zero layout interference.
 - ✅ **One tick per user message**, evenly spaced on the rail (oldest at top, newest at bottom) — never scattered by message sizes.
-- ✅ **Immune to history paging**: ticks cover ALL user messages (including history not yet rendered via "load older", sourced from the session log); clicking an unloaded tick **auto-pages up** and then smooth-scrolls to it.
+- ✅ **Immune to history paging**: ticks cover ALL user messages (including history not yet rendered via "load older", sourced from the session log); clicking an unloaded tick **auto-pages up** and then smooth-scrolls to it (aligned exactly by message id — an intermediate page with no user messages no longer interrupts the jump, and API timing / steers / forked rows can never shift the target).
 - ✅ **Ticks of the messages inside the viewport are auto-bolded**, following the scroll in real time.
 - ✅ **Fisheye magnification while sweeping the rail**: the tick under the pointer grows longest, its neighbors grow by a cosine distance falloff (CSS-transitioned) — spot the target at a glance.
 - ✅ **Hovering a tick** pops a preview card: `My message · 3 / 12` plus the message excerpt (up to 140 chars / 7 lines) on its own line, plus a dedicated time line.
@@ -115,7 +115,7 @@ GET /api/message-minimap-messages?sessionId=<sessionId>
 
 - Requires the browser-trust fence (loopback / `trustedHosts` + same-origin), otherwise `403`.
 - Unknown `sessionId` → `404`; missing `sessionId` → `400`.
-- Excerpts only: each message's `seq`, epoch `time`, a whitespace-collapsed excerpt of at most 140 chars, and an `image` flag; never full content, never other record types.
+- Excerpts only: each message's `seq`, stable message `id`, epoch `time`, a whitespace-collapsed excerpt of at most 140 chars, and an `image` flag; never full content, never other record types.
 
 Response example:
 
@@ -123,7 +123,7 @@ Response example:
 {
   "total": 14,
   "messages": [
-    { "seq": 7, "time": 1786975510788, "text": "I need you to …", "image": true }
+    { "seq": 7, "id": "msg_2xj9k…", "time": 1786975510788, "text": "I need you to …", "image": true }
   ]
 }
 ```
@@ -133,8 +133,8 @@ Response example:
 | Concern | Approach |
 |---|---|
 | Anchor source | The conversation package wraps every chat node with stable `data-chat-flow-kind` / `data-chat-flow-key` attributes; user messages have kind `"user"`; the paged column carries `data-chat-flow`. |
-| Full-list data | The host half reads the session log (`session.jsonl` / `.zstd`, frame-walked with tolerance for a torn tail mid-write), keeping only `user/message` records with `source.kind === "user"`; payloads are cached by (size, mtime). |
-| Paging alignment | The chat view renders only the most recent slice, so `domIndex = fullIndex − (total − rendered)`. Clicking an unloaded tick pulls older pages in a loop (preferring the session-scoped `conversation.loadOlder()` service, falling back to clicking the "load older" button) until the target lands in the DOM, then smooth-scrolls; one page without progress stops the loop — never a spin. |
+| Full-list data | The host half reads the session log (`session.jsonl` / `.zstd`, frame-walked with tolerance for a torn tail mid-write), keeping only `user/message` records with `source.kind === "user"`; each row also carries the log message `id` (`data.id`); payloads are cached by (size, mtime). |
+| Paging alignment | API rows ↔ DOM nodes are matched **by message id**: a user bubble's flow key has the shape `<len>:input-message<id>`, and the client parses the id out of it, so whether a tick is loaded depends only on that id being present in the DOM — never on counts. Clicking an unloaded tick pulls older pages in a loop (preferring the session-scoped `conversation.loadOlder()` service, falling back to clicking the "load older" button); progress is the target key appearing — a 50-event page with zero user messages no longer reads as "no progress" — until the target lands (then smooth-scroll), the pager disappears, or a page cap is hit. Hosts without `id` automatically fall back to the positional alignment. |
 | Degradation | When the host route is unreachable (403/404/network) the rail falls back to ticks for rendered messages only — the pure-DOM mode. |
 | Scroll container | Nearest `overflow-y: auto/scroll` ancestor of the first visible flow item; auto-hides in the export layout (`data-conversation-scroll`, nothing scrolls). |
 | Geometry mapping | The tick column is compact and centered (fixed 10px pitch; height ≈ min(10px × count + 28px, pane height × 0.55)); ticks are **evenly spaced by index**. Rail drags map proportionally to scroll position; content offsets are only used for jump targets and in-view detection. |
@@ -148,7 +148,7 @@ Response example:
 |---|---|
 | Rail not visible | Confirm `dsh web` was restarted; the session needs user messages and scrollable overflow; search F12 Console for `dsh-message-minimap`. |
 | Ticks cover only the recent slice | The host route isn't in effect: check `/api/message-minimap-messages` in Network (`403` = trust fence, `404` = session not found); while unreachable the plugin degrades to rendered-only ticks. |
-| Clicking an early tick doesn't jump | The plugin pages up first (watch the "loading" pill at the chat top); if history is fully loaded and it still doesn't jump, a fork/steer count mismatch is likely — scroll once and click again. |
+| Clicking an early tick doesn't jump | Since 0.4.3 the jump is keyed by message id: the plugin pages up first (watch the "loading" pill at the chat top), crossing pages that contain no user messages, until the target appears; if the whole history is loaded and the message still doesn't exist (forked/deleted), it stops in place rather than jumping somewhere wrong. Older positional alignment (`domIndex = fullIndex − (total − rendered)`) could drift with API timing or interleaved messages — upgrade. |
 | Tick positions drift | Async image/attachment loads change heights — the MutationObserver self-corrects; if it persists, scroll or resize once to force a recompute. |
 | Clicks don't jump | Check whether you're in the export/print layout (`data-conversation-scroll`) — it has no internal scroll container and the plugin hides itself. |
 | Styling looks off | Confirm the theme variables (`--dsw-*`) exist; the plugin ships no colors of its own and follows the DSW theme. |
@@ -158,7 +158,7 @@ Response example:
 - **Read-only**: no business-DOM mutation, no event interception (outside its own rail), no file modification or deletion; the host only reads session logs.
 - **Path red line**: the session log is located ONLY via the id-encoded segment under `$DSH_HOME/sessions` — client-supplied paths are never accepted; the id is single-segment escaped, ruling out traversal.
 - **Browser-trust fence**: `/api/message-minimap-messages` only answers loopback or declared `trustedHosts` same-origin requests; `sec-fetch-site: cross-site` and foreign Origins are rejected.
-- **Minimal disclosure**: only each user message's `seq`, time, ≤140-char excerpt and image flag are returned; never full content, never other record types.
+- **Minimal disclosure**: only each user message's `seq`, `id`, time, ≤140-char excerpt and image flag are returned; never full content, never other record types.
 - **No persistence**: nothing written to localStorage / cookies; uninstalling leaves no trace.
 
 ## 10. Development & build
