@@ -18,29 +18,33 @@
 
 ```
 聊天滚动窗 (overflow-y: auto，长会话分页加载)
-  │  每条用户消息 = 一个刻度（含未加载的历史，来自会话日志）
-  │  视口内的消息刻度 = 加粗高亮
+  │  每一轮对话 = 一个刻度（含未加载的历史，来自官方 turnOutline 投影）
+  │  视口内的刻度 = 加粗高亮
   │
-  ▼  悬停刻度 → 预览卡片（第几条 / 共几条 + 消息摘要 + 时间行）
-  ▼  点击刻度 → 平滑滚动到该消息（未加载的先自动向上翻页）
+  ▼  悬停刻度 → 预览卡片（第几条 / 共几条 + 提示词摘要 + 时间行）
+  ▼  点击刻度 → 平滑滚动到该轮（未加载的先按官方 loadThrough(seq) 精确翻页）
   ▼  点击/拖动轨道 → 按比例跳转
 ```
 
-**只读**：客户端只读取浏览器中已渲染的会话 DOM（聊天节点带有稳定的 `data-chat-flow-kind` / `data-chat-flow-key` 锚点），滚动的是既有的聊天滚动容器；宿主半部只新增一个**只读路由** `GET /api/message-minimap-messages`，从会话日志（`$DSH_HOME/sessions`）提取全量用户消息的**摘要**（每条最多 140 字符 + 时间戳），用于覆盖"加载更多"还没渲染的历史刻度。不修改、不删除任何文件。
+**只读**：客户端只读取浏览器中已渲染的会话 DOM（聊天行带有稳定的 `data-chat-flow-kind` / `data-chat-flow-key` / `data-chat-turn` 锚点），滚动的是既有的聊天滚动容器。全量数据来自 DSH 官方的 **`turnOutline` 会话投影**（整段日志的轮次大纲：轮次号、`turn/start` 序号、提示词与回复的有界预览），翻页调用官方的 **`sessions.binding(id).session.loadThrough(seq)`**（"向后翻页直到窗口覆盖该序号"）。
+
+> 因此 **0.5.0 起宿主半部是空实现**：不再开路由、不再解析会话日志文件。这也顺带摆脱了对日志落盘格式的依赖（0.1.7 起日志已改为 `session.v3/v4.jsonl.zstd` 新容器格式）。
+
+> 兼容性：需要 **DSH ≥ 0.1.7**（`turnOutline` 由 `@deepseek-ai/dsh-session-turn-outline` 提供、`dsh-web-app` 组合注册）。旧版本上投影缺失时，导航条自动降级为"仅已加载轮次"模式。
 
 ## 2. 功能特性
 
 - ✅ 聊天窗左侧一条**紧凑居中**的导航条（不铺满全高），不干扰布局。
-- ✅ **每条用户消息一个刻度**，在刻度列上均匀分布（上旧下新），不随消息长短散开。
-- ✅ **长会话分页也不怕**：刻度覆盖**全部**用户消息（含"加载更多"未渲染的历史，数据来自会话日志）；点击未加载的刻度会**自动向上翻页**，加载到后平滑跳转（按消息 id 精确对齐，中间页即使不含用户消息也不会中断）。
-- ✅ **跳转精确**：刻度与消息按日志中的消息 id 双向关联（DOM 锚点 `data-chat-flow-key` 内嵌该 id），不再依赖"DOM 是全长列表尾部"的位置假设——API 时序、插队/分岔消息、加载页不含用户消息都不会导致跳偏。
-- ✅ **当前视口内的消息刻度自动加粗高亮**，随滚动实时更新。
+- ✅ **每一轮对话一个刻度**（即你发过的每条消息），在刻度列上均匀分布（上旧下新），不随消息长短散开。
+- ✅ **长会话分页也不怕**：刻度覆盖**全部轮次**（含"加载更多"未渲染的历史）——数据取自官方 `turnOutline` 投影，**不需要你手动往上滑**，打开会话即显示完整刻度。
+- ✅ **跳转精确**：未加载的轮次直接调用官方 `loadThrough(seq)` 一次翻到位（"向后翻页直到窗口覆盖该轮 `turn/start` 序号"），不依赖逐页试探，也不会跳偏。
+- ✅ **当前视口内的刻度自动加粗高亮**，随滚动实时更新。
 - ✅ **鼠标扫过刻度列时鱼眼放大**：指针下的刻度变得最长，邻近刻度按距离渐次微长（余弦衰减 + CSS 过渡），一眼定位。
-- ✅ **悬停刻度**弹出预览卡片：`我的消息 · 3 / 12` + 消息文本摘要（最多 140 字符、7 行）+ 独立时间行。
-- ✅ **点击刻度**平滑滚动到该消息（停靠在视口上方约 18% 处）。
+- ✅ **悬停刻度**弹出预览卡片：`我的消息 · 3 / 12` + 提示词摘要 + 独立时间行（时间取自已渲染的该轮）。
+- ✅ **点击刻度**平滑滚动到该轮（停靠在视口上方约 18% 处）。
 - ✅ **点击/按住拖动轨道背景**按比例跳转，像滚动条一样快速扫读。
 - ✅ 流式输出、加载历史、切换会话、窗口缩放时自动跟随（MutationObserver + scroll/resize + 轮询兜底）。
-- ✅ 内容未溢出、无用户消息、或在新会话引导页时自动隐藏，不干扰布局。
+- ✅ 内容未溢出、无轮次、或在新会话引导页时自动隐藏，不干扰布局。
 - ✅ 中英双语界面文案，跟随界面语言。
 - ✅ 键盘可达：刻度是原生 `<button>`，可 Tab 聚焦后回车跳转。
 
@@ -61,7 +65,7 @@ dsh-message-minimap/   # 仓库根 = npm 包根
 ├── LICENSE                 # MIT
 ├── screenshot/             # 效果截图（README「效果预览」用）
 └── lib/
-    ├── index.js            # 宿主半部：/api/message-minimap-messages（读会话日志 → 全量用户消息摘要，零依赖）
+    ├── index.js            # 宿主半部：纯标记行（no-op，零依赖），仅为让 Loader 发现本包
     └── client.js           # 浏览器 bundle：导航条（conversation.session.header.utilities 挂载）
 ```
 
@@ -102,44 +106,36 @@ dsh plugin --profile web add "D:\path\to\dsh-message-minimap"
 ## 5. 使用
 
 1. 打开任意历史会话（或聊到内容超过一屏）。
-2. 看聊天窗左侧居中的导航条：每个小刻度是**你发过的一条消息**，**当前在视口内的消息刻度**会加粗高亮。
-3. **悬停刻度**：右侧弹出预览卡，显示"我的消息 · n / 总数"与消息开头内容。
-4. **点击刻度**：平滑滚动到那条消息；若它还没被"加载更多"渲染出来，会自动向上翻页加载后再跳转。
+2. 看聊天窗左侧居中的导航条：每个小刻度是**你发过的一条消息（一轮对话）**，**当前在视口内的刻度**会加粗高亮。
+3. **悬停刻度**：右侧弹出预览卡，显示"我的消息 · n / 总数"、提示词开头与时该轮时间。
+4. **点击刻度**：平滑滚动到那一轮；若它还没被"加载更多"渲染出来，插件会调用官方 `loadThrough(seq)` 一次翻到位再跳转。
 5. **点击或按住拖动刻度以外的轨道**：按比例跳转（等价于滚动条拖拽）。
-6. 会话太短（不足一屏）、没有用户消息、或在空白新会话页时，导航条自动隐藏。
+6. 会话太短（不足一屏）、没有轮次、或在空白新会话页时，导航条自动隐藏。
 
-## 6. API 速查
+## 6. 依赖的官方能力
 
-```text
-GET /api/message-minimap-messages?sessionId=<sessionId>
-```
+本插件不新增任何路由，只消费 DSH 官方接口（0.1.7 起可用）：
 
-- 需要浏览器信任围栏通过（loopback / `trustedHosts` + 同源校验），否则 `403`。
-- 未知 `sessionId` 返回 `404`；缺失 `sessionId` 返回 `400`。
-- 只返回摘要：每条消息的 `seq`、稳定消息 `id`、 epoch 时间、最多 140 字符的折叠摘要、是否含图片；不返回完整内容，不返回其他类型记录。
-
-响应示例：
-
-```json
-{
-  "total": 14,
-  "messages": [
-    { "seq": 7, "id": "msg_2xj9k…", "time": 1786975510788, "text": "我需要你参考 …", "image": true }
-  ]
-}
-```
+| 能力 | 用途 |
+|---|---|
+| `turnOutline` 会话投影 | 整段日志的轮次大纲：每轮的 `turn`、`turn/start` 的 `seq`、提示词与回复的有界预览。刻度就是它的条目（**因此不需要手动加载更多**）。 |
+| `sessions.binding(sessionId).session.loadThrough(seq)` | 官方"跳转加载器"：向后翻页直到窗口覆盖该 `seq`。点击未加载的刻度时调用它一次翻到位。 |
+| `conversation.loadOlder()` / "加载更多"按钮 | `loadThrough` 不可用时的兜底：逐页向上翻。 |
+| DOM 锚点 `data-chat-turn` / `data-chat-flow-kind` / `data-chat-flow-key` / `data-chat-flow` | 判断某轮是否已渲染、定位滚动目标、测量"视口内"。 |
+| `conversation.session.header.utilities` 槽位 | 挂载导航条（活动会话常驻）。 |
 
 ## 7. 实现要点
 
 | 关注点 | 做法 |
 |---|---|
-| 锚点来源 | 会话包给每个聊天节点渲染 `data-chat-flow-kind` / `data-chat-flow-key` 的稳定包裹层；用户消息 kind 为 `"user"`；分页列带有 `data-chat-flow`。 |
-| 全量数据 | 宿主半部读会话日志（`session.jsonl` / `.zstd`，按帧解压、容忍写入中的残帧），只保留 `source.kind === "user"` 的 `user/message` 记录；按 (size, mtime) 缓存。每条记录额外返回日志消息 `id`（`data.id`）。 |
-| 分页对齐 | API 行 ↔ DOM 节点按**消息 id** 关联：用户气泡的 flow key 形如 `<长度>:input-message<id>`，客户端从中解析出 id 后与 API 行精确配对——刻度是否已加载只取决于该 id 是否出现在 DOM 中，与数量无关。点击未加载的刻度时循环拉取上一页（优先会话级 `conversation.loadOlder()` 服务，兜底点"加载更多"按钮），**以目标 key 是否出现为进度信号**（一页 50 条事件里没有用户消息也不会误判为无进展），直至目标进入 DOM 平滑跳转、分页按钮消失、或达到页数上限；无 id 的旧宿主自动回退到位置对齐。 |
-| 降级 | 宿主路由不可达（403/404/网络）时自动退回"仅已加载消息"刻度，即纯 DOM 模式。 |
+| 锚点来源 | 聊天包给每个渲染行加上 `data-chat-flow-kind`（用户行 kind 为 `"user"`）、`data-chat-flow-key`、以及所属轮次 `data-chat-turn`；分页列带有 `data-chat-flow`。 |
+| 全量数据 | `props.useProjection("turnOutline")` 取全部轮次（`turn` / `seq` / `prompt` / `response`）；投影未就绪或不可用时退回"仅已渲染轮次"。 |
+| 未加载跳转 | 目标轮未渲染时调用 `loadThrough(seq)`（官方精确加载），随后轮询 `[data-chat-turn]` 直到该轮出现再定位；`loadThrough` 不可用时退回逐页拉取（服务 `loadOlder()`，再兜底点分页按钮），连续 3 个周期无进展即停止并告警。 |
+| 已加载判断 | 只取决于 DOM 中是否存在该轮次的行（`data-chat-turn`），与窗口长度、页内是否含用户消息都无关。 |
 | 滚动容器 | 从第一个可见 flow item 向上找最近的 `overflow-y: auto/scroll` 祖先；导出布局（`data-conversation-scroll`，不滚动）下自动隐藏。 |
-| 几何映射 | 刻度列紧凑居中（间距固定 10px，高 ≈ min(10px × 数量 + 28px, 窗高 × 0.55)），刻度按序号**均匀分布**；拖动轨道时按比例换算滚动位置；消息内容偏移只用于跳转目标与"视口内"判定。 |
-| 数据同步 | `MutationObserver`（childList/subtree/characterData，覆盖流式输出）+ 容器 `scroll` + `ResizeObserver` + 1s 轮询兜底（应对迟挂载/会话切换），rAF 节流 + 浅比较避免渲染抖动；全量列表 5s 轻量拉取（宿主按 mtime 缓存）。 |
+| 几何映射 | 刻度列紧凑居中（间距固定 10px，高 ≈ min(10px × 数量 + 28px, 窗高 × 0.55)），刻度按序号**均匀分布**；拖动轨道时按比例换算滚动位置；行偏移只用于跳转目标与"视口内"判定。 |
+| 数据同步 | `MutationObserver`（childList/subtree/characterData，覆盖流式输出）+ 容器 `scroll` + `ResizeObserver` + 1s 轮询兜底（应对迟挂载/会话切换），rAF 节流 + 浅比较避免渲染抖动。投影变化经 React 渲染自动驱动刻度。 |
+| 时间行 | `turnOutline` 不含时间戳：已渲染的轮次从该轮用户气泡的时间元素（类名后缀 `timeStart`/`timeEnd`，与哈希前缀无关）读取；未渲染时该行留空。 |
 | 挂载点 | `conversation.session.header.utilities` 槽位（活动会话常驻），组件本身只渲染 `position: fixed` 的轨道，无内联占位。 |
 | 样式 | 与官方包一致地注入 `<style data-plugin-css>`，全部使用 DSW 主题变量，自动适配明暗主题。 |
 
@@ -147,24 +143,23 @@ GET /api/message-minimap-messages?sessionId=<sessionId>
 
 | 现象 | 排查方向 |
 |---|---|
-| 看不到导航条 | 确认已重启 `dsh web`；会话需已有用户消息且内容可滚动；F12 Console 搜 `dsh-message-minimap`。 |
-| 刻度只覆盖最近一段 | 宿主路由未生效：Network 里查 `/api/message-minimap-messages`（`403`=信任围栏、`404`=会话未找到）；路由不可达时插件会降级为只显示已加载段。 |
-| 点击早期刻度没跳转 | 0.4.3 起按消息 id 精确跳转：插件会自动向上翻页（每秒重试触发一次，跨越不含用户消息的页）直到目标消息出现；若历史耗尽仍不存在（分岔/已删除消息），会停在原地不跳偏。放弃时 Console 会输出 `[dsh-message-minimap]` 警告——设 `localStorage.dmm.debug=1` 后重载复现，可拿到完整翻页日志。 |
+| 看不到导航条 | 确认已重启 `dsh web`；会话需已有轮次且内容可滚动；F12 Console 搜 `dsh-message-minimap`。 |
+| 刻度只覆盖最近一段 | `turnOutline` 投影未生效：确认 DSH ≥ 0.1.7 且 `dsh-web-app` 组合包含 `session-turn-outline`（`dsh --profile web --dump-config \| Select-String turn-outline`）；投影缺失时插件降级为仅显示已渲染轮次。 |
+| 点击早期刻度没跳转 | 插件调用 `loadThrough(seq)` 精确翻页（必要时每秒重试），目标轮进 DOM 后定位；历史耗尽仍不存在（分岔/已删除）会停在原地。放弃时 Console 输出 `[dsh-message-minimap]` 警告——设 `localStorage.dmm.debug=1` 后重载复现可拿到完整翻页日志。 |
 | 刻度位置偏移 | 偶发的图片/附件异步加载会改变高度——MutationObserver 会自动校正；若持续异常，滚动一下或缩放窗口触发重算。 |
 | 点击不跳转 | 检查是否在导出/打印式布局（`data-conversation-scroll`）下——该布局无内部滚动容器，插件自动隐藏。 |
 | 样式异常 | 确认主题变量（`--dsw-*`）存在；本插件不自带配色，全部跟随 DSW 主题。 |
 
 ## 9. 安全与合规
 
-- **只读**：不修改 DOM 业务结构、不拦截事件（除自身轨道）、不修改/删除任何文件；宿主只读会话日志。
-- **路径红线**：会话日志**仅**由 `$DSH_HOME/sessions` 下的会话 id 编码段定位，绝不接受客户端传来的路径；id 单段转义，杜绝目录穿越。
-- **浏览器信任围栏**：`/api/message-minimap-messages` 仅接受 loopback 或声明 `trustedHosts` 的同源请求，拒绝 `sec-fetch-site: cross-site` 与 Origin 不同的请求。
-- **信息最小化**：只返回每条用户消息的 `seq`、`id`、时间、最多 140 字符摘要与图片标记；不返回完整内容、不返回其他类型记录。
-- **无持久化**：不写 localStorage / cookie；卸载即无痕。
+- **只读**：不修改 DOM 业务结构、不拦截事件（除自身轨道）、不读写任何文件、不发起网络请求。
+- **零宿主能力**：宿主半部是空实现，不开路由、不读会话日志、无配置项。
+- **数据最小化**：只使用官方投影已提供的轮次预览（有界文本），不额外读取或落盘任何会话内容。
+- **无持久化**：不写 localStorage / cookie（除可选的 `dmm.debug` 调试开关，由你自己设置）；卸载即无痕。
 
 ## 10. 开发与构建
 
-纯 JS 无构建步骤。`lib/index.js` 宿主半部**零外部依赖**（仅 `node:` 内置）；`lib/client.js` 是经典脚本（`window.__ModuleLoader__.load`），由 client 模块系统按 `/plugins/dsh-message-minimap/client.js` 直接服务。
+纯 JS 无构建步骤。`lib/index.js` 宿主半部是**零 import** 的空实现；`lib/client.js` 是经典脚本（`window.__ModuleLoader__.load`），由 client 模块系统按 `/plugins/dsh-message-minimap/client.js` 直接服务。
 
 ## 11. License
 

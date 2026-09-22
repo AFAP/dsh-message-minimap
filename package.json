@@ -1,7 +1,7 @@
 {
   "name": "dsh-message-minimap",
-  "version": "0.4.4",
-  "description": "用户消息导航条插件：在 DeepSeek Harness Web GUI 会话聊天窗左侧显示一条迷你导航条（minimap），用刻度标出每一条用户消息的位置，悬停预览消息摘要，点击/拖动即可快速跳转定位。",
+  "version": "0.5.0",
+  "description": "用户消息导航条插件：在 DeepSeek Harness Web GUI 会话聊天窗左侧显示一条迷你导航条（minimap），用刻度标出全部用户轮次（含未加载历史，取自官方 turnOutline 投影），悬停预览提示词、点击/拖动即可快速跳转定位（未加载轮次按官方 loadThrough(seq) 精确翻页）。",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
