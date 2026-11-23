@@ -2,12 +2,15 @@
 # web profile composition. Applied as a bundle layer (dsh.bundle.patch) after
 # dsh-base and dsh-web-app, so the row lands beside the other dsh.client rows.
 #
-# The plugin is pure client-side: the host half is a no-op marker that only
-# exists so the client module system (dsh-client-modules) discovers the
-# package's `dsh.client` declaration and serves /plugins/dsh-message-minimap/client.js.
-# No webRuntime / trustedHosts are needed because the plugin opens no routes —
-# the minimap reads the official `turnOutline` session projection and pages
-# history through the official session face.
+# The plugin is mostly client-side: this host row exists so the client module
+# system (dsh-client-modules) discovers the package's `dsh.client` declaration
+# and serves /plugins/dsh-message-minimap/client.js. The host half also
+# optionally registers one tiny `messageMinimapTimes` session projection (see
+# lib/projection.js) so unloaded turns can show their send date/time. No
+# webRuntime / trustedHosts are needed because the plugin opens no routes —
+# the minimap reads the official `turnOutline` session projection, the
+# companion turn-time projection, and pages history through the official
+# session face.
 - insert:
     - id: message-minimap
       name: dsh-message-minimap

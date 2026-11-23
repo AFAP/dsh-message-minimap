@@ -1,7 +1,7 @@
 {
   "name": "dsh-message-minimap",
-  "version": "0.6.0",
-  "description": "用户消息导航条插件：在 DeepSeek Harness Web GUI 会话聊天窗右侧显示一条迷你导航条（minimap，官方轮次轨道在左侧），用刻度标出全部用户轮次（含未加载历史，取自官方 turnOutline 投影），悬停预览提示词与发送时间、点击/拖动即可快速跳转定位（未加载轮次按官方 loadThrough(seq) 精确翻页）。",
+  "version": "0.7.0",
+  "description": "用户消息导航条插件：在 DeepSeek Harness Web GUI 会话聊天窗右侧显示一条迷你导航条（minimap，官方轮次轨道在左侧），用刻度标出全部用户轮次（含未加载历史，取自官方 turnOutline 投影），悬停预览提示词与发送日期时间（未加载轮次由宿主轻量 messageMinimapTimes 投影补齐），点击/拖动即可快速跳转定位（未加载轮次按官方 loadThrough(seq) 精确翻页）。",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -26,8 +26,12 @@
     "type": "git",
     "url": "git+https://github.com/AFAP/dsh-message-minimap.git"
   },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
   "files": [
     "lib/index.js",
+    "lib/projection.js",
     "lib/client.js",
     "cordis.patch.yml"
   ],
