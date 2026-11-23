@@ -171,6 +171,8 @@ dsh plugin --profile web add "D:\path\to\dsh-message-minimap"
 
 纯 JS 无构建步骤。`lib/index.js` 宿主半部没有静态 import，按需动态加载 `lib/projection.js`（只依赖 zod）注册可选投影；`lib/client.js` 是经典脚本（`window.__ModuleLoader__.load`），由 client 模块系统按 `/plugins/dsh-message-minimap/client.js` 直接服务。
 
+发布约定：Git tag / GitHub Release 名为 `v<插件版本>-dsh-<适配的 DSH 版本>`，例如 `v0.7.0-dsh-0.2.3-alpha.2`（当前适配 DSH 0.2.3-alpha.2）；`package.json` 的 `version` 保持普通 semver。
+
 ## 11. License
 
 MIT © AFAP

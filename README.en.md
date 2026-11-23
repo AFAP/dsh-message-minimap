@@ -171,6 +171,8 @@ No route is added: the plugin only consumes official DSH interfaces (available s
 
 Plain JS, no build step. `lib/index.js` (host half) has no static imports; it lazily loads `lib/projection.js` (only dependency: zod) to register the optional projection. `lib/client.js` is a classic script (`window.__ModuleLoader__.load`) served directly by the client module system at `/plugins/dsh-message-minimap/client.js`.
 
+Release convention: Git tags / GitHub Releases are named `v<plugin version>-dsh-<supported DSH version>`, e.g. `v0.7.0-dsh-0.2.3-alpha.2` (currently adapted to DSH 0.2.3-alpha.2); the `package.json` `version` stays plain semver.
+
 ## 11. License
 
 MIT © AFAP
