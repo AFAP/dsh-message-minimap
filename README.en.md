@@ -4,7 +4,7 @@
   <a href="README.md">中文</a> · <b>English</b>
 </div>
 
-> **A slim minimap rail on the LEFT edge of the DeepSeek Harness Web GUI chat pane: every message you sent becomes a tick — hover for a preview, click to jump, drag to scan long sessions.**
+> **A slim minimap rail on the RIGHT edge of the DeepSeek Harness Web GUI chat pane: every message you sent becomes a tick — hover for a preview, click to jump, drag to scan long sessions.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -14,7 +14,7 @@
 
 In a long session, going back to "what did I say earlier?" means endless wheel scrolling. The assistant's replies are long and dense, and your own messages get buried in between.
 
-This plugin adds a thin navigation rail on the **left edge** of the chat pane (like the VS Code minimap):
+This plugin adds a thin navigation rail on the **right edge** of the chat pane (like the VS Code minimap) — the official turn rail owns the left gutter, so the two rails keep to their own sides:
 
 ```
 chat scroll pane (overflow-y: auto, long sessions are paged)
@@ -30,17 +30,20 @@ chat scroll pane (overflow-y: auto, long sessions are paged)
 
 > Since 0.5.0 the **host half is a no-op**: no route, no session-log parsing. That also drops the dependency on the on-disk log layout, which changed in 0.1.7 (`session.v3/v4.jsonl.zstd`, new container format).
 
+> Since 0.6.0 the rail is **mirrored to the right edge** of the chat pane: DSH's official turn rail now lives on the left, so the two no longer crowd the same gutter. The rail hugs the left side of the scrollbar, ticks pin to the right edge and grow leftward, and the hover preview opens to the left. The clock line and the whole-session turn list are unchanged. Where DSH's Session panel owns the right side, the rail moves into the clear band after the message column for a docked panel and yields while a floating panel is open; vertically it centers in the band above the composer, so it never covers the input card.
+
 > Compatibility: requires **DSH ≥ 0.1.7** (`turnOutline` is provided by `@deepseek-ai/dsh-session-turn-outline`, registered by the `dsh-web-app` composition). On older versions the rail degrades to loaded turns only.
 
 ## 2. Features
 
-- ✅ A **compact, vertically centered** rail on the chat pane's left edge (not full height) — zero layout interference.
+- ✅ A **compact, vertically centered** rail on the chat pane's right edge, just left of the scrollbar (not full height) — zero layout interference; ticks pin to the right edge and grow leftward on hover.
+- ✅ Coexists with DSH's right-side chrome: a docked Session panel moves the rail into the clear band after the message column, a floating panel makes it yield, and the rail stays above the composer.
 - ✅ **One tick per turn** (i.e. per message you sent), evenly spaced on the rail (oldest at top, newest at bottom) — never scattered by message sizes.
 - ✅ **Immune to history paging**: ticks cover ALL turns (including history not yet rendered via "load older") — sourced from the official `turnOutline` projection, so the full ladder shows as soon as the session opens, **without scrolling up yourself**.
 - ✅ **Exact jumps**: an unloaded turn is fetched with the official `loadThrough(seq)` in one call ("page backwards until the window covers that turn's `turn/start` seq") — no blind page-by-page probing, and no drift.
 - ✅ **Ticks of the turns inside the viewport are auto-bolded**, following the scroll in real time.
-- ✅ **Fisheye magnification while sweeping the rail**: the tick under the pointer grows longest, its neighbors grow by a cosine distance falloff (CSS-transitioned) — spot the target at a glance.
-- ✅ **Hovering a tick** pops a preview card: `My message · 3 / 12` plus the prompt excerpt and a dedicated time line (taken from the rendered turn).
+- ✅ **Fisheye magnification while sweeping the rail**: the tick under the pointer grows longest, its neighbors grow by a cosine distance falloff (the width follows the pointer immediately; color/opacity ease) — spot the target at a glance.
+- ✅ **Hovering a tick — or anywhere on the rail, which previews the nearest tick —** pops a preview card: `My message · 3 / 12` plus the prompt excerpt and a dedicated time line (taken from the rendered turn).
 - ✅ **Clicking a tick** smooth-scrolls to that turn (parked ~18% below the pane top).
 - ✅ **Clicking or dragging the rail background** jumps proportionally, like a scrollbar.
 - ✅ Follows streaming output, history loading, session switches and window resizes automatically (MutationObserver + scroll/resize + polling fallback).
@@ -55,6 +58,8 @@ chat scroll pane (overflow-y: auto, long sessions are paged)
 | Hover a tick: preview card (excerpt + dedicated time line) |
 |:---:|
 | ![Hover tick preview](screenshot/rail-hover.png) |
+
+> The screenshot shows the 0.5.x left-side position; the preview content is unchanged — since 0.6.0 the rail sits on the right and the card opens on its left.
 
 ## 3. Directory layout
 
@@ -101,13 +106,13 @@ dsh plugin --profile web add "D:\path\to\dsh-message-minimap"
 
 ### Verify it loaded
 
-Open a session **with several exchanges whose content overflows and scrolls** → a ticked rail appears at the chat pane's left edge; hovering a tick shows the message excerpt.
+Open a session **with several exchanges whose content overflows and scrolls** → a ticked rail appears at the chat pane's right edge; hovering a tick shows the message excerpt.
 
 ## 5. Usage
 
 1. Open any long historical session (or chat past one screenful).
-2. Look at the centered rail on the chat pane's left edge: each small tick is **one message you sent (one turn)**; the ticks of **turns currently inside the viewport** are bolded.
-3. **Hover a tick**: a preview card pops to the right with "My message · n / total", the prompt opening and that turn's clock.
+2. Look at the centered rail on the chat pane's right edge: each small tick is **one message you sent (one turn)**; the ticks of **turns currently inside the viewport** are bolded.
+3. **Hover a tick — or anywhere on the rail, which previews the nearest tick**: a preview card pops to the left with "My message · n / total", the prompt opening and that turn's clock.
 4. **Click a tick**: smooth-scrolls to that turn; if it hasn't been rendered by "load older" paging yet, the plugin calls the official `loadThrough(seq)` to page it in first, then jumps.
 5. **Click or drag the rail outside the ticks**: proportional jump (equivalent to scrollbar dragging).
 6. The rail hides itself when the session is too short (under one screen), has no turns, or shows the blank new-session hero.
@@ -133,8 +138,8 @@ No route is added: the plugin only consumes official DSH interfaces (available s
 | Jumping to an unloaded turn | Call `loadThrough(seq)` (the official exact loader), then poll `[data-chat-turn]` until the turn appears and land on it; if `loadThrough` is unavailable, fall back to repeated page pulls (service `loadOlder()`, then the pager button) and stop with a warning after 3 stalled cycles. |
 | Loaded detection | Purely "does a row with this `data-chat-turn` exist" — independent of window length or whether a page contains user messages. |
 | Scroll container | Nearest `overflow-y: auto/scroll` ancestor of the first visible flow item; auto-hides in the export layout (`data-conversation-scroll`, nothing scrolls). |
-| Geometry mapping | The tick column is compact and centered (fixed 10px pitch; height ≈ min(10px × count + 28px, pane height × 0.55)); ticks are **evenly spaced by index**. Rail drags map proportionally to scroll position; row offsets are only used for jump targets and in-view detection. |
-| Sync | `MutationObserver` (childList/subtree/characterData, covering streaming) + container `scroll` + `ResizeObserver` + 1s polling fallback (late mount / session switch), rAF-throttled with shallow equality; projection changes drive ticks through React rendering. |
+| Geometry mapping | The tick column is compact and centered (fixed 10px pitch; height ≈ min(10px × count + 28px, band height × 0.55)); it hugs the pane's right edge, just left of the scrollbar, moves after the message column while a docked Session panel owns the right side, and hides while a floating panel is open. The band is the scrollport height minus the composer height (official `--dsh-composer-height`); ticks are **evenly spaced by index**. Rail drags map proportionally to scroll position; row offsets are only used for jump targets and in-view detection. |
+| Sync | `MutationObserver` (childList/subtree/characterData, plus the scrollport's `style` and `data-session-panel`, covering streaming and composer/panel changes) + container `scroll` + `ResizeObserver` + 1s polling fallback (late mount / session switch), rAF-throttled with shallow equality; projection changes drive ticks through React rendering. |
 | Time line | `turnOutline` carries no timestamps: a rendered turn lends its clock from the user bubble's time element (class suffix `timeStart`/`timeEnd`, independent of the build hash); the line stays empty otherwise. |
 | Mount point | The `conversation.session.header.utilities` slot (always mounted for the active session); the component renders only the `position: fixed` rail, no inline chrome. |
 | Styling | Injected `<style data-plugin-css>` like the shipped bundles; everything uses DSW theme variables, auto light/dark. |
